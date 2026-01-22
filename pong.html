@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pong Game with Sound</title>
+<style>
+    body {
+        background: #111;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+    canvas {
+        background: black;
+        border: 2px solid white;
+    }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="800" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+// ---------- SOUND SETUP ----------
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq, duration) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.frequency.value = freq;
+    osc.type = "square";
+
+    gain.gain.value = 0.1;
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+// ---------- GAME CONSTANTS ----------
+const PADDLE_WIDTH = 10;
+const PADDLE_HEIGHT = 80;
+const BALL_SIZE = 10;
+
+// Player paddle
+let player = {
+    x: 10,
+    y: canvas.height / 2 - PADDLE_HEIGHT / 2,
+    score: 0,
+    speed: 6
+};
+
+// Computer paddle
+let computer = {
+    x: canvas.width - PADDLE_WIDTH - 10,
+    y: canvas.height / 2 - PADDLE_HEIGHT / 2,
+    score: 0
+};
+
+// Ball
+let ball = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    dx: 4,
+    dy: 4
+};
+
+// Keyboard input
+let upPressed = false;
+let downPressed = false;
+
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp") upPressed = true;
+    if (e.key === "ArrowDown") downPressed = true;
+});
+
+document.addEventListener("keyup", e => {
+    if (e.key === "ArrowUp") upPressed = false;
+    if (e.key === "ArrowDown") downPressed = false;
+});
+
+// Mouse control
+canvas.addEventListener("mousemove", e => {
+    const rect = canvas.getBoundingClientRect();
+    player.y = e.clientY - rect.top - PADDLE_HEIGHT / 2;
+});
+
+// ---------- DRAW ----------
+function drawRect(x, y, w, h) {
+    ctx.fillStyle = "white";
+    ctx.fillRect(x, y, w, h);
+}
+
+function drawBall() {
+    ctx.fillRect(ball.x, ball.y, BALL_SIZE, BALL_SIZE);
+}
+
+function drawScore() {
+    ctx.font = "20px Arial";
+    ctx.fillText(player.score, canvas.width / 4, 30);
+    ctx.fillText(computer.score, 3 * canvas.width / 4, 30);
+}
+
+// ---------- LOGIC ----------
+function resetBall() {
+    playSound(200, 0.3); // score sound
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.dx = -ball.dx;
+}
+
+function collision(p) {
+    return (
+        ball.x < p.x + PADDLE_WIDTH &&
+        ball.x + BALL_SIZE > p.x &&
+        ball.y < p.y + PADDLE_HEIGHT &&
+        ball.y + BALL_SIZE > p.y
+    );
+}
+
+function update() {
+    // Player movement
+    if (upPressed && player.y > 0) player.y -= player.speed;
+    if (downPressed && player.y < canvas.height - PADDLE_HEIGHT)
+        player.y += player.speed;
+
+    // Ball movement
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    // Wall collision
+    if (ball.y <= 0 || ball.y + BALL_SIZE >= canvas.height) {
+        ball.dy = -ball.dy;
+        playSound(600, 0.05); // wall sound
+    }
+
+    // Paddle collision
+    if (collision(player) || collision(computer)) {
+        ball.dx = -ball.dx;
+        playSound(800, 0.05); // paddle hit
+    }
+
+    // Scoring
+    if (ball.x < 0) {
+        computer.score++;
+        resetBall();
+    }
+
+    if (ball.x > canvas.width) {
+        player.score++;
+        resetBall();
+    }
+
+    // Computer AI
+    computer.y += (ball.y - (computer.y + PADDLE_HEIGHT / 2)) * 0.05;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawRect(player.x, player.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+    drawRect(computer.x, computer.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+    drawBall();
+    drawScore();
+}
+
+// Game loop
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// Start on user interaction (browser audio policy)
+canvas.addEventListener("click", () => {
+    audioCtx.resume();
+});
+
+gameLoop();
+</script>
+
+</body>
+</html>
