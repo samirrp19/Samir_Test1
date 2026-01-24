@@ -1,1 +1,1 @@
-It's a simple gaming code
+It's a simple gaming code for testing
